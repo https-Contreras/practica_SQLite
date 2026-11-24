@@ -70,13 +70,36 @@ class AppDatabase extends _$AppDatabase {
   }
 
   // ---------------------------------------------------------------------------
-  // Escrituras (INSERT)
+  // Escrituras (INSERT, UPDATE, DELETE)
   // ---------------------------------------------------------------------------
 
   /// INSERT. Devuelve el id generado.
   Future<int> agregarTarea(String titulo) async {
     final limpio = normalizarTitulo(titulo);
     return into(tareas).insert(TareasCompanion.insert(titulo: limpio));
+  }
+
+  /// UPDATE del título. Devuelve `true` si se modificó alguna fila.
+  Future<bool> editarTitulo(int id, String nuevoTitulo) async {
+    final limpio = normalizarTitulo(nuevoTitulo);
+    final filas = await (update(tareas)..where((t) => t.id.equals(id))).write(
+      TareasCompanion(titulo: Value(limpio)),
+    );
+    return filas > 0;
+  }
+
+  /// UPDATE del estado. Devuelve `true` si se modificó alguna fila.
+  Future<bool> cambiarEstado(int id, bool completada) async {
+    final filas = await (update(tareas)..where((t) => t.id.equals(id))).write(
+      TareasCompanion(completada: Value(completada)),
+    );
+    return filas > 0;
+  }
+
+  /// DELETE por id. Devuelve `true` si se eliminó alguna fila.
+  Future<bool> eliminarTarea(int id) async {
+    final filas = await (delete(tareas)..where((t) => t.id.equals(id))).go();
+    return filas > 0;
   }
 
   static Tarea _aModelo(TareaRegistro fila) =>

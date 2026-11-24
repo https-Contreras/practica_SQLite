@@ -71,5 +71,5 @@ Si se modifica la tabla en `lib/data/app_database.dart`, hay que regenerar
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-> Estado actual: **Etapa 2** — la base SQLite se abre con `drift_flutter` y ya
-> se pueden agregar y consultar tareas persistentes. Faltan editar, cambiar estado y eliminar.
+> Estado actual: **Etapa 3** — CRUD completo sobre SQLite: agregar, consultar,
+> editar título, marcar completada/pendiente y eliminar por id, con validación.
