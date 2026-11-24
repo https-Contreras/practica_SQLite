@@ -124,20 +124,6 @@ la persistencia: hay que cerrar la app por completo y volver a abrirla.
 | iOS, macOS | Previstas (requieren una Mac con Xcode; no probadas) |
 | Windows | Prevista (requiere compilar en Windows; no probada) |
 
-## Pruebas manuales (P1–P6)
-
-| ID | Acción | Esperado | Linux | Web |
-|---|---|---|---|---|
-| P1 | Agregar tres tareas, cerrar la app y abrirla | Permanecen las tres | ⬜ | ⬜ |
-| P2 | Marcar una como completada y reiniciar | Se conserva el estado | ⬜ | ✅ |
-| P3 | Cambiar el título y reiniciar | Aparece el nuevo título | ⬜ | ⬜ |
-| P4 | Eliminar una tarea y reiniciar | No reaparece | ⬜ | ⬜ |
-| P5 | Agregar un título vacío | No se registra | ⬜ | ⬜ |
-| P6 | Recargar y cerrar/abrir la pestaña (mismo origen y perfil) | Los datos permanecen | — | ✅ |
-
-✅ = verificado, ⬜ = pendiente de verificar manualmente. Las pruebas automatizadas
-cubren P1–P5 sobre SQLite real (ver abajo).
-
 ## Pruebas automatizadas
 
 `flutter test` ejecuta 17 pruebas:
