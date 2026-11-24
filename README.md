@@ -47,7 +47,9 @@ CREATE TABLE tareas (
 lib/
   main.dart                 # arranque; crea y cierra la base de datos
   models/tarea.dart         # modelo usado por la UI (id, titulo, completada)
-  data/                     # capa de persistencia (Drift)
+  data/app_database.dart    # tabla Tareas + AppDatabase (Drift) y consultas
+  data/app_database.g.dart  # código generado por build_runner (no editar)
+  data/validacion.dart      # validación del título
   screens/tareas_page.dart  # interfaz; no hace consultas dentro de build()
 test/                       # pruebas automatizadas
 web/                        # incluirá sqlite3.wasm y drift_worker.js
@@ -62,5 +64,12 @@ flutter test
 flutter run -d linux     # o -d chrome, o un dispositivo de `flutter devices`
 ```
 
-> Estado actual: **Etapa 1** — proyecto creado, dependencias agregadas y
-> diseño definido. La persistencia se implementa en la siguiente etapa.
+Si se modifica la tabla en `lib/data/app_database.dart`, hay que regenerar
+`app_database.g.dart`:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+> Estado actual: **Etapa 2** — la base SQLite se abre con `drift_flutter` y ya
+> se pueden agregar y consultar tareas persistentes. Faltan editar, cambiar estado y eliminar.
