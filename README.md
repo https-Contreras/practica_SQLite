@@ -41,19 +41,28 @@ CREATE TABLE tareas (
 - **Título:** se valida antes de guardar (no vacío, no solo espacios, máximo
   200 caracteres) y se guarda sin espacios al inicio/final.
 
-## Organización prevista
+## Organización del proyecto
 
 ```
 lib/
-  main.dart                 # arranque; crea y cierra la base de datos
+  main.dart                 # arranque; crea la base y la cierra al desmontar la app
   models/tarea.dart         # modelo usado por la UI (id, titulo, completada)
-  data/app_database.dart    # tabla Tareas + AppDatabase (Drift) y consultas
+  data/app_database.dart    # tabla Tareas + AppDatabase (Drift): INSERT/SELECT/UPDATE/DELETE
   data/app_database.g.dart  # código generado por build_runner (no editar)
   data/validacion.dart      # validación del título
-  screens/tareas_page.dart  # interfaz; no hace consultas dentro de build()
-test/                       # pruebas automatizadas
-web/                        # incluirá sqlite3.wasm y drift_worker.js
+  screens/tareas_page.dart  # interfaz; consulta reactiva creada en initState, no en build()
+test/
+  validacion_test.dart      # reglas del título (vacío, espacios, longitud)
+  app_database_test.dart    # CRUD sobre SQLite real y persistencia al cerrar/reabrir
+  widget_test.dart          # interfaz: inicio, alta, título vacío, editar/completar/eliminar
+web/
+  sqlite3.wasm              # SQLite compilado a WebAssembly (sqlite3 3.5.2)
+  drift_worker.js           # worker de Drift para web (drift 2.35.4)
 ```
+
+La interfaz se actualiza con una **consulta reactiva** (`select(...).watch()` →
+`StreamBuilder`): después de cada INSERT/UPDATE/DELETE, Drift vuelve a emitir la
+lista sin tener que volver a consultar manualmente.
 
 ## Cómo ejecutar
 
@@ -71,5 +80,74 @@ Si se modifica la tabla en `lib/data/app_database.dart`, hay que regenerar
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-> Estado actual: **Etapa 3** — CRUD completo sobre SQLite: agregar, consultar,
-> editar título, marcar completada/pendiente y eliminar por id, con validación.
+## Configuración para web
+
+En el navegador no hay SQLite nativo, así que se usa SQLite compilado a
+WebAssembly. Drift necesita dos archivos en `web/`, **con versiones que
+coincidan con las del `pubspec.lock`**:
+
+| Archivo | Origen | Versión |
+|---|---|---|
+| `web/sqlite3.wasm` | https://github.com/simolus3/sqlite3.dart/releases (tag `sqlite3-3.5.2`) | paquete `sqlite3` 3.5.2 |
+| `web/drift_worker.js` | https://github.com/simolus3/drift/releases (tag `drift-2.35.4`) | paquete `drift` 2.35.4 |
+
+Si se actualizan `drift` o `sqlite3`, hay que descargar de nuevo ambos archivos
+de la versión correspondiente. Se referencian en `AppDatabase` con
+`DriftWebOptions(sqlite3Wasm: Uri.parse('sqlite3.wasm'), driftWorker: Uri.parse('drift_worker.js'))`.
+
+Drift elige el mejor almacenamiento disponible: OPFS si el servidor envía las
+cabeceras COOP/COEP, y si no, **IndexedDB** (lo que ocurre con `flutter run -d chrome`
+y con un servidor estático simple; en consola aparece
+`Using WasmStorageImplementation.sharedIndexedDb`).
+
+## Dónde se guardan los datos
+
+| Plataforma | Ubicación del archivo `gestor_tareas.sqlite` |
+|---|---|
+| Android | `/data/data/<paquete>/files/` (privado de la app) |
+| iOS / macOS | `Library/Application Support/` del contenedor de la app |
+| Linux | `~/.local/share/com.example.gestor_tareas_local/` |
+| Windows | `%APPDATA%\<empresa>\gestor_tareas_local\` |
+| Web | IndexedDB/OPFS del navegador, por **origen** (protocolo + host + puerto) y perfil |
+
+Los datos se pierden al desinstalar la app, al borrar los datos del sitio en el
+navegador o al cerrar una ventana de incógnito. Un *hot reload* no comprueba
+la persistencia: hay que cerrar la app por completo y volver a abrirla.
+
+## Plataformas
+
+| Plataforma | Estado |
+|---|---|
+| Linux | **Probada** (Fedora 44, `flutter run -d linux`) |
+| Web (Chrome) | **Probada** (compilación `flutter build web` servida en localhost) |
+| Android | Prevista (mismo código; no probada) |
+| iOS, macOS | Previstas (requieren una Mac con Xcode; no probadas) |
+| Windows | Prevista (requiere compilar en Windows; no probada) |
+
+## Pruebas manuales (P1–P6)
+
+| ID | Acción | Esperado | Linux | Web |
+|---|---|---|---|---|
+| P1 | Agregar tres tareas, cerrar la app y abrirla | Permanecen las tres | ⬜ | ⬜ |
+| P2 | Marcar una como completada y reiniciar | Se conserva el estado | ⬜ | ✅ |
+| P3 | Cambiar el título y reiniciar | Aparece el nuevo título | ⬜ | ⬜ |
+| P4 | Eliminar una tarea y reiniciar | No reaparece | ⬜ | ⬜ |
+| P5 | Agregar un título vacío | No se registra | ⬜ | ⬜ |
+| P6 | Recargar y cerrar/abrir la pestaña (mismo origen y perfil) | Los datos permanecen | — | ✅ |
+
+✅ = verificado, ⬜ = pendiente de verificar manualmente. Las pruebas automatizadas
+cubren P1–P5 sobre SQLite real (ver abajo).
+
+## Pruebas automatizadas
+
+`flutter test` ejecuta 17 pruebas:
+
+- **`validacion_test.dart`**: rechaza títulos vacíos, solo con espacios y
+  demasiado largos; acepta títulos válidos y quita espacios sobrantes.
+- **`app_database_test.dart`** (SQLite real con `NativeDatabase`):
+  INSERT/SELECT, rechazo de títulos vacíos, UPDATE de título y estado, DELETE por
+  id, que la consulta reactiva emita tras cada escritura y una prueba con
+  **archivo en disco** que cierra y reabre la base para comprobar P1–P4.
+- **`widget_test.dart`** (base en memoria inyectada en la app): pantalla
+  inicial, alta desde la interfaz, título vacío (P5) y editar/completar/eliminar
+  desde la interfaz.
